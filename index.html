@@ -1,0 +1,165 @@
+<head>
+<script type="text/javascript" src="https://raw.github.com/tmpvar/vec2.js/master/vec2.min.js"></script>
+</head>
+<body>
+
+<canvas id="stringCanvas" width="800" height="800" style="border:1px solid #000000;">
+</canvas> 
+
+<script>
+
+function mod(n, m) {
+        return ((n % m) + m) % m;
+}
+
+var FPS = 60.0;
+var timeFactor = 1.0; //time units in a second
+var screenHeight = 2.0;
+
+
+var dt = timeFactor/FPS;
+
+var zeromills = (new Date()).getTime();
+
+var c = document.getElementById("stringCanvas");
+var ctx = c.getContext("2d");
+
+function F(u) {
+	return F_random(u);
+}
+
+function F_circle(u) {
+return new Vec2( 0.5 * Math.cos(u), 0.5 * Math.sin(u));
+}
+
+var random_F = [new Vec2(0,0)];
+var istep = 0.01;
+var ranangle = 0.0;
+for(i=0.0;i<2*Math.PI;i+=istep)
+{
+	var last = random_F[random_F.length - 1];
+	ranangle += Math.random()*0.8-0.4;
+	random_F.push(last.clone().add(
+		(new Vec2(Math.cos(ranangle),Math.sin(ranangle))).multiply(istep,true)
+		,true)
+	);
+
+};
+
+//correcting drift velocity
+
+var driftv = random_F[random_F.length-1].clone().subtract(random_F[0],true).divide(2*Math.PI,true);
+
+
+
+for (j=0;j<random_F.length;j++)
+{
+	var sigma = j*2.0*Math.PI/random_F.length
+	random_F[j].add(driftv.multiply(-sigma,true));
+	//random_F[j].subtract(x0);
+}
+
+//correcting average position
+
+var x0 = new Vec2(0,0);
+
+for(k=0;k<random_F.length;k++)
+{
+	x0.add(random_F[k]);
+}
+
+x0.multiply(1.0/random_F.length);
+
+console.log(x0);
+
+for(k=0;k<random_F.length;k++)
+{
+	random_F[k].subtract(x0);
+}
+
+
+function F_random(u) {
+	
+//console.log(random_F[44]);
+	var findex = u/istep;
+	
+	var index = mod(Math.round(findex ), (random_F.length));
+	var interp = (findex - Math.floor(findex));
+
+	//console.log(index);
+	var out =  random_F[index].clone();
+	
+
+	//console.log(out);
+	return out;
+}
+
+function F_square(u) {
+	var modu = u - Math.floor(u/(2*Math.PI))*Math.PI;
+	if (u<Math.PI/2.0)
+		return new Vec2(-Math.PI/4.0+u,Math.PI/4.0);
+	if (u<Math.PI)
+		return new Vec2(Math.PI/4.0,-Math.PI/4.0+u-Math.PI/2);
+
+	return new Vec2(0,0);
+
+}
+
+function v2screen(v)
+{
+	var out = new Vec2(c.width/2.0,c.height/2.0);
+	out.add(v.multiply( c.height /screenHeight));
+	return out;
+}
+
+function clear() {
+ctx.clearRect(0, 0, c.width, c.height);
+}
+
+function draw() {
+
+	clear();
+
+	var dateObj = new Date();
+	var milliseconds = dateObj.getTime(); 
+
+	var timemils = milliseconds - zeromills;
+
+	var tau = timemils/1000.0 * timeFactor;
+
+
+	ctx.beginPath();
+
+
+	var posS = v2screen(F(tau));
+	ctx.moveTo(posS.x,posS.y);
+	for (sigma = 0; sigma < 2*Math.PI; sigma += 0.01)
+	{
+
+		posS = v2screen(
+				(F(tau + sigma).add(F(tau-sigma))).multiply(0.5)
+				
+				);
+
+
+		ctx.lineTo(posS.x,posS.y);
+	}
+	ctx.closePath();
+	ctx.stroke();
+
+	ctx.beginPath();
+	var x0S = v2screen(x0);
+	ctx.arc(x0S.x,x0S.y,5,0,2*Math.PI,false);
+	ctx.closePath();
+	ctx.fill();						
+	ctx.stroke();
+						   	
+
+}
+
+window.setInterval(draw,1000/30);
+</script>
+
+</body>
+
+
